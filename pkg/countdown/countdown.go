@@ -2,6 +2,7 @@ package countdown
 
 import (
 	"fmt"
+	"sync"
 )
 
 func Solve(target int, numbers ...int) chan Expression {
@@ -9,7 +10,31 @@ func Solve(target int, numbers ...int) chan Expression {
 	for i, v := range numbers {
 		exprs[i] = numberExpression(v)
 	}
-	return findBest(target, combinations(exprs))
+	return solve(target, exprs)
+}
+
+const processCount = 5
+
+func solve(target int, numbers []Expression) chan Expression {
+	combs := combinations(numbers)
+	accumulator := make(chan Expression)
+	go func() {
+		var wg sync.WaitGroup
+		wg.Add(processCount)
+		defer func() {
+			wg.Wait()
+			close(accumulator)
+		}()
+		for i := processCount; i > 0; i-- {
+			go func() {
+				defer wg.Done()
+				for e := range findBest(target, combs) {
+					accumulator <- e
+				}
+			}()
+		}
+	}()
+	return findBest(target, accumulator)
 }
 
 type Priority int
