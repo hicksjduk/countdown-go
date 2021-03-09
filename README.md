@@ -44,7 +44,7 @@ better output it, and retain it as the new best solution.
 
 The solution makes extensive use of a "generator" pattern, to generate and 
 process potentially very large sets of data in an efficient way. The term "generator"
-is derived from Python, where most iterations are doing using generators and there is
+is derived from Python, where most iterations are done using generators and there is
 explicit language support for creating them. 
 
 The difference between a generator and more traditional ways of generating data sets
@@ -60,11 +60,11 @@ is:
 * The function takes whatever parameters are needed to generate its output, and
 returns a channel of the appropriate output type.
 * The body of the function:
- * Creates the channel through which the output is to be returned. The channel is
- typically unbuffered.
- * Runs a goroutine which generates the output items and puts them in the channel,
- and then (crucially) closes the channel.
- * Returns the channel.
+   * Creates the channel through which the output is to be returned. The channel is
+     typically unbuffered.
+   * Runs a goroutine which generates the output items and puts them in the channel,
+     and then (crucially) closes the channel.
+    * Returns the channel.
 
 This behaves as a generator, generating data values on demand, is a consequence of 
 the fact that when an attempt is made to insert a value in a channel, the attempt
