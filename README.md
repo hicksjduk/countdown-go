@@ -66,8 +66,8 @@ returns a channel of the appropriate output type.
      and then (crucially) closes the channel.
     * Returns the channel.
 
-This behaves as a generator, generating data values on demand, is a consequence of 
-the fact that when an attempt is made to insert a value in a channel, the attempt
+This behaves as a generator, generating data values only on demand, because 
+when an attempt is made to insert a value in a channel, the attempt
 blocks if the channel is unbuffered, or its buffer is full, and nothing is waiting
 to retrieve a value from the channel. This block remains until a retrieval request 
 is made.
