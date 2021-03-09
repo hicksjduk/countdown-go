@@ -42,7 +42,7 @@ better output it, and retain it as the new best solution.
 
 ### Generators
 
-The solution makes extensive use of a "generator" pattern, to generate and 
+The solver makes extensive use of a "generator" pattern, to generate and 
 process potentially very large sets of data in an efficient way. The term "generator"
 is derived from Python, where most iterations are done using generators and there is
 explicit language support for creating them. 
