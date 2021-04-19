@@ -236,11 +236,12 @@ func combine(exprs []Expression) chan Expression {
 		if size := len(exprs); size == 1 {
 			answer <- exprs[0]
 		} else {
+			used := usedTracker()
 			for i := 1; i < size; i++ {
 				for left := range combine(exprs[:i]) {
 					for right := range combine(exprs[i:]) {
 						for _, comb := range combiners {
-							if expr, ok := comb(left, right); ok {
+							if expr, ok := comb(left, right); ok && !used(expr.value) {
 								answer <- expr
 							}
 						}
