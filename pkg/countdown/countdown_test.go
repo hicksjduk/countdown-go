@@ -2,76 +2,88 @@ package countdown
 
 import (
 	"fmt"
+	"os"
+	"regexp"
+	"strconv"
 	"testing"
+
+	"github.com/cucumber/godog"
 )
 
-func TestPermuteAllDifferent(t *testing.T) {
-	testPermute(t, []int{1, 2, 3, 4, 5, 6}, 1956)
+var opts = godog.Options{
+	Format:   "progress",
+	NoColors: true,
 }
 
-func TestPermuteAllPairsOfDuplicates(t *testing.T) {
-	testPermute(t, []int{1, 2, 2, 3, 1, 3}, 270)
+func TestMain(m *testing.M) {
+	status := godog.TestSuite{
+		Name:                "Countdown",
+		ScenarioInitializer: InitializeScenario,
+		Options:             &opts,
+	}.Run()
+	os.Exit(status)
 }
 
-func testPermute(t *testing.T, input []int, expectedCount int) {
-	exprs := make([]Expression, len(input))
-	for i, v := range input {
-		exprs[i] = numberExpression(v)
+type testContext struct {
+	target  int
+	numbers []int
+	result  *Expression
+}
+
+func (tc *testContext) callSolver(target int, numbers string) error {
+	tc.target = target
+	tc.numbers = toNumberArray(numbers)
+	fmt.Println("-----------------------------------")
+	fmt.Printf("Target: %v, numbers: %v\n", tc.target, tc.numbers)
+	for res := range Solve(target, tc.numbers...) {
+		fmt.Printf("%v = %v\n", res.print, res.value)
+		tc.result = &res
 	}
-	results := map[string]interface{}{}
-	for v := range permute(exprs) {
-		str := fmt.Sprintf("%v", v)
-		if _, ok := results[str]; ok {
-			t.Errorf("Duplicate result: %v", str)
-		} else {
-			results[str] = nil
-		}
+	if tc.result == nil {
+		fmt.Println("No result found")
 	}
-	if actualCount := len(results); expectedCount != actualCount {
-		t.Errorf("Expected %d result(s) but got %d", expectedCount, actualCount)
+	fmt.Println("-----------------------------------")
+	return nil
+}
+
+func toNumberArray(str string) []int {
+	splitRe := regexp.MustCompile(`\D+`)
+	items := splitRe.Split(str, -1)
+	nums := make([]int, len(items))
+	for i := range nums {
+		nums[i], _ = strconv.Atoi(items[i])
 	}
+	return nums
 }
 
-func TestSolveWithSolution(t *testing.T) {
-	solution := getSolution(834, 10, 9, 8, 7, 6, 5)
-	validateSolution(t, solution, 834)
+func (tc *testContext) checkExactSolution(expectedCount int) error {
+	return tc.checkSolution(tc.target, expectedCount)
 }
 
-func TestSolveWithSolution2(t *testing.T) {
-	solution := getSolution(378, 50, 7, 4, 3, 2, 1)
-	validateSolution(t, solution, 378)
-}
-
-func TestSolveWithSolution3(t *testing.T) {
-	solution := getSolution(493, 50, 25, 4, 3, 2, 4)
-	validateSolution(t, solution, 493)
-}
-
-func TestSolveWithSolution4(t *testing.T) {
-	solution := getSolution(803, 50, 4, 9, 6, 6, 1)
-	validateSolution(t, solution, 803)
-}
-
-func TestSolveWithNonExactSolution(t *testing.T) {
-	solution := getSolution(954, 50, 75, 25, 100, 5, 8)
-	validateSolution(t, solution, 955)
-}
-
-func TestSolveWithoutSolution(t *testing.T) {
-	solution := getSolution(999, 1, 2, 3, 4, 5, 6)
-	validateSolution(t, solution, 0)
-}
-
-func validateSolution(t *testing.T, solution Expression, expectedValue int) {
-	if expectedValue != solution.value {
-		t.Errorf("Expected solution with value %v but got %v", expectedValue, solution.value)
+func (tc *testContext) checkSolution(expectedValue, expectedCount int) error {
+	if expected, actual := expectedValue, tc.result.value; expected != actual {
+		return fmt.Errorf("Expected solution with value %v but got %v", expected, actual)
 	}
+	if expected, actual := expectedCount, len(tc.result.numbers); expected != actual {
+		return fmt.Errorf("Expected solution that uses %v number(s) but got %v", expected, actual)
+	}
+	return nil
 }
 
-func getSolution(target int, numbers ...int) Expression {
-	var solution Expression
-	for solution = range Solve(target, numbers...) {
-		fmt.Printf("%v = %v\n", solution.print, solution.value)
+func (tc *testContext) checkNoSolution() error {
+	if tc.result != nil {
+		return fmt.Errorf("Expected no solution but there was one")
 	}
-	return solution
+	return nil
+}
+
+func InitializeScenario(ctx *godog.ScenarioContext) {
+	tc := &testContext{}
+	ctx.Step(`^I call the solver with target number (\d+) and numbers (\d+(?:\s*,\s*\d+)*)$`,
+		tc.callSolver)
+	ctx.Step(`^a solution is found whose value equals the target number and which uses (\d+) numbers$`,
+		tc.checkExactSolution)
+	ctx.Step(`^a solution is found whose value equals (\d+) and which uses (\d+) numbers$`,
+		tc.checkSolution)
+	ctx.Step(`^no solution is found$`, tc.checkNoSolution)
 }

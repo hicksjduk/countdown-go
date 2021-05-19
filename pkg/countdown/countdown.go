@@ -89,10 +89,10 @@ var (
 )
 
 type Expression struct {
-	value       int
-	print       string
-	priority    Priority
-	numberCount int
+	value    int
+	print    string
+	priority Priority
+	numbers  []int
 }
 
 func (e Expression) String() string {
@@ -101,19 +101,27 @@ func (e Expression) String() string {
 
 func numberExpression(n int) Expression {
 	return Expression{
-		value:       n,
-		print:       fmt.Sprintf("%d", n),
-		priority:    atomic,
-		numberCount: 1,
+		value:    n,
+		print:    fmt.Sprintf("%d", n),
+		priority: atomic,
+		numbers:  []int{n},
 	}
 }
 
 func arithmeticExpression(leftOperand Expression, operator operation, rightOperand Expression) Expression {
+	numbers := make([]int, len(leftOperand.numbers)+len(rightOperand.numbers))
+	for i := range numbers {
+		if i < len(leftOperand.numbers) {
+			numbers[i] = leftOperand.numbers[i]
+		} else {
+			numbers[i] = rightOperand.numbers[i-len(leftOperand.numbers)]
+		}
+	}
 	return Expression{
-		value:       operator.evaluator(leftOperand.value, rightOperand.value),
-		print:       printExpression(leftOperand, operator, rightOperand),
-		priority:    operator.priority,
-		numberCount: leftOperand.numberCount + rightOperand.numberCount,
+		value:    operator.evaluator(leftOperand.value, rightOperand.value),
+		print:    printExpression(leftOperand, operator, rightOperand),
+		priority: operator.priority,
+		numbers:  numbers,
 	}
 }
 
@@ -262,7 +270,7 @@ func findBest(target int, exprs chan Expression) chan Expression {
 		for e := range exprs {
 			switch diff := differenceFromTarget(e); {
 			case diff > 10 || diff > bestDiff:
-			case diff == bestDiff && e.numberCount >= bestSoFar.numberCount:
+			case diff == bestDiff && len(e.numbers) >= len(bestSoFar.numbers):
 			default:
 				answer <- e
 				bestSoFar, bestDiff = e, diff
