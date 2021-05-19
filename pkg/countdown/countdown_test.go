@@ -2,7 +2,6 @@ package countdown
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"testing"
@@ -16,12 +15,11 @@ var opts = godog.Options{
 }
 
 func TestMain(m *testing.M) {
-	status := godog.TestSuite{
+	godog.TestSuite{
 		Name:                "Countdown",
 		ScenarioInitializer: InitializeScenario,
 		Options:             &opts,
 	}.Run()
-	os.Exit(status)
 }
 
 type testContext struct {
