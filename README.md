@@ -96,3 +96,54 @@ for i := range big_sequence_generator(10000000000) {
 	// process the data item
 }
 ```
+
+## Testing notes
+
+The tests in this repository are BDD (behaviour-driven design) tests written in
+[the Gherkin language](https://cucumber.io/docs/gherkin/reference/). 
+These tests are run using the [godog](https://github.com/cucumber/godog) package.
+
+The simplest steps (followed in this repo) to get BDD-style tests discovered and
+run using godog are:
+* In the package where the code resides that you want to test, add:
+   * a subdirectory called `features` which contains your Gherkin feature file(s)
+   * a file whose name ends with `_test.go` which contains your test definitions.
+* In the root of your project, run the command `go mod init`. This is required
+because test discovery and running only works properly in a Go module.
+
+Godog tests can be integrated with the Go test infrastructure using the `TestMain`
+function which is supported from version 1.14 onwards. The `countdown_test_go`
+file in this repo contains the following functions:
+* `TestMain`, which creates and runs a `godog.TestSuite` that is initialised using
+the `InitializeScenario` function.
+* A number of functions that implement the various test steps. Each of these functions
+returns an `error` if any expectations are not met, otherwise it returns `nil`.
+* `InitializeScenario`, which associates the test step implementation functions
+with the regular expressions that are used to match step definitions
+in the feature file. Each association is defined by calling `godog.Step`, passing
+a regular expression and a reference to a step implementation function.
+
+The easiest way to pass data from one step of a test to another is to define a type
+which contains the data that needs to be passed, and then to make all
+the step implementation functions (or at least those that need to pass or receive
+data) methods of that type. Then, in the `InitializeScenario` function, an instance
+of that type is created, and each step implementation is defined as a method of that
+instance.
+
+For example, in this test suite all the step implementations are methods of type `testContext`
+which is a struct containing a number of fields. Then the `InitializeScenario`
+function is defined thus:
+```go
+func InitializeScenario(ctx *godog.ScenarioContext) {
+	tc := &testContext{}
+	ctx.Step(`^I call the solver with target number (\d+) and numbers (\d+(?:\s*,\s*\d+)*)$`,
+		tc.callSolver)
+	ctx.Step(`^a solution is found whose value equals the target number and which uses (\d+) numbers$`,
+		tc.checkExactSolution)
+	ctx.Step(`^a solution is found whose value equals (\d+) and which uses (\d+) numbers$`,
+		tc.checkSolution)
+	ctx.Step(`^no solution is found$`, tc.checkNoSolution)
+}
+```
+The first line of this function creates an instance of `testContext`, and the remaining lines
+associate its methods with the regular expressions used in parsing the feature file.

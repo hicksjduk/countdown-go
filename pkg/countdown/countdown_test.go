@@ -65,7 +65,25 @@ func (tc *testContext) checkSolution(expectedValue, expectedCount int) error {
 	if expected, actual := expectedCount, len(tc.result.numbers); expected != actual {
 		return fmt.Errorf("Expected solution that uses %v number(s) but got %v", expected, actual)
 	}
+	expectedOcc, actualOcc := occurrenceCounts(tc.numbers), occurrenceCounts(tc.result.numbers)
+	for n, actual := range actualOcc {
+		if expected, ok := expectedOcc[n]; !ok || expected < actual {
+			return fmt.Errorf("Solution has too many occurrences of %v", n)
+		}
+	}
 	return nil
+}
+
+func occurrenceCounts(nums []int) map[int]int {
+	answer := map[int]int{}
+	for _, n := range nums {
+		if _, ok := answer[n]; ok {
+			answer[n] += 1
+		} else {
+			answer[n] = 1
+		}
+	}
+	return answer
 }
 
 func (tc *testContext) checkNoSolution() error {
