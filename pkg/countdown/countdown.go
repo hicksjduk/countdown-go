@@ -109,20 +109,24 @@ func numberExpression(n int) Expression {
 }
 
 func arithmeticExpression(leftOperand Expression, operator operation, rightOperand Expression) Expression {
-	numbers := make([]int, len(leftOperand.numbers)+len(rightOperand.numbers))
-	for i := range numbers {
-		if i < len(leftOperand.numbers) {
-			numbers[i] = leftOperand.numbers[i]
-		} else {
-			numbers[i] = rightOperand.numbers[i-len(leftOperand.numbers)]
-		}
-	}
 	return Expression{
 		value:    operator.evaluator(leftOperand.value, rightOperand.value),
 		print:    printExpression(leftOperand, operator, rightOperand),
 		priority: operator.priority,
-		numbers:  numbers,
+		numbers:  concatArrays(leftOperand.numbers, rightOperand.numbers),
 	}
+}
+
+func concatArrays(arrs ...[]int) []int {
+	length := 0
+	for _, arr := range arrs {
+		length += len(arr)
+	}
+	answer := make([]int, 0, length)
+	for _, arr := range arrs {
+		answer = append(answer, arr...)
+	}
+	return answer
 }
 
 func printExpression(leftOperand Expression, operator operation, rightOperand Expression) string {
