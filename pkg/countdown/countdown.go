@@ -5,8 +5,8 @@ import (
 	"sync"
 )
 
-func Solve(target int, numbers ...int) chan Expression {
-	exprs := make([]Expression, len(numbers))
+func Solve(target int, numbers ...int) chan *Expression {
+	exprs := make([]*Expression, len(numbers))
 	for i, v := range numbers {
 		exprs[i] = numberExpression(v)
 	}
@@ -15,9 +15,9 @@ func Solve(target int, numbers ...int) chan Expression {
 
 const processCount = 5
 
-func solve(target int, numbers []Expression) chan Expression {
+func solve(target int, numbers []*Expression) chan *Expression {
 	combs := combinations(numbers)
-	accumulator := make(chan Expression)
+	accumulator := make(chan *Expression)
 	go func() {
 		var wg sync.WaitGroup
 		wg.Add(processCount)
@@ -85,7 +85,6 @@ var (
 			return a / b
 		},
 	}
-	operations = []operation{addition, subtraction, multiplication, division}
 )
 
 type Expression struct {
@@ -95,12 +94,12 @@ type Expression struct {
 	numbers  []int
 }
 
-func (e Expression) String() string {
+func (e *Expression) String() string {
 	return fmt.Sprintf("%v = %v", e.print, e.value)
 }
 
-func numberExpression(n int) Expression {
-	return Expression{
+func numberExpression(n int) *Expression {
+	return &Expression{
 		value:    n,
 		print:    fmt.Sprintf("%d", n),
 		priority: atomic,
@@ -108,8 +107,8 @@ func numberExpression(n int) Expression {
 	}
 }
 
-func arithmeticExpression(leftOperand Expression, operator operation, rightOperand Expression) Expression {
-	return Expression{
+func arithmeticExpression(leftOperand *Expression, operator operation, rightOperand *Expression) *Expression {
+	return &Expression{
 		value:    operator.evaluator(leftOperand.value, rightOperand.value),
 		print:    printExpression(leftOperand, operator, rightOperand),
 		priority: operator.priority,
@@ -129,7 +128,7 @@ func concatArrays(arrs ...[]int) []int {
 	return answer
 }
 
-func printExpression(leftOperand Expression, operator operation, rightOperand Expression) string {
+func printExpression(leftOperand *Expression, operator operation, rightOperand *Expression) string {
 	return fmt.Sprintf("%v %v %v",
 		withParensIfNecessary(leftOperand.print, func() bool {
 			return leftOperand.priority < operator.priority
@@ -148,43 +147,61 @@ func withParensIfNecessary(s string, parensNeeded func() bool) string {
 	return s
 }
 
-type combiner func(Expression, Expression) (Expression, bool)
+type combiner func(*Expression) (*Expression, bool)
 
-func addCombiner(left, right Expression) (Expression, bool) {
-	return arithmeticExpression(left, addition, right), true
+type combinerCreator func(*Expression) (combiner, bool)
+
+func addCombinerCreator(left *Expression) (combiner, bool) {
+	return func(right *Expression) (*Expression, bool) {
+		return arithmeticExpression(left, addition, right), true
+	}, true
 }
 
-func subtractCombiner(left, right Expression) (Expression, bool) {
-	if left.value <= right.value {
-		return Expression{}, false
+func subtractCombinerCreator(left *Expression) (combiner, bool) {
+	if left.value < 3 {
+		return nil, false
 	}
-	if left.value == right.value*2 {
-		return Expression{}, false
-	}
-	return arithmeticExpression(left, subtraction, right), true
+	return func(right *Expression) (*Expression, bool) {
+		if left.value <= right.value || left.value == right.value*2 {
+			return nil, false
+		}
+		return arithmeticExpression(left, subtraction, right), true
+	}, true
 }
 
-func multiplyCombiner(left, right Expression) (Expression, bool) {
-	if left.value == 1 || right.value == 1 {
-		return Expression{}, false
+func multiplyCombinerCreator(left *Expression) (combiner, bool) {
+	if left.value == 1 {
+		return nil, false
 	}
-	return arithmeticExpression(left, multiplication, right), true
+	return func(right *Expression) (*Expression, bool) {
+		if right.value == 1 {
+			return nil, false
+		}
+		return arithmeticExpression(left, multiplication, right), true
+	}, true
 }
 
-func divideCombiner(left, right Expression) (Expression, bool) {
-	if left.value == 1 || right.value == 1 {
-		return Expression{}, false
+func divideCombinerCreator(left *Expression) (combiner, bool) {
+	if left.value == 1 {
+		return nil, false
 	}
-	if left.value%right.value != 0 || left.value == right.value*right.value {
-		return Expression{}, false
-	}
-	return arithmeticExpression(left, division, right), true
+	return func(right *Expression) (*Expression, bool) {
+		if right.value == 1 || left.value%right.value != 0 || left.value == right.value*right.value {
+			return nil, false
+		}
+		return arithmeticExpression(left, division, right), true
+	}, true
 }
 
-var combiners = []combiner{addCombiner, subtractCombiner, multiplyCombiner, divideCombiner}
+var combinerCreators = []combinerCreator{
+	addCombinerCreator,
+	subtractCombinerCreator,
+	multiplyCombinerCreator,
+	divideCombinerCreator,
+}
 
-func combinations(exprs []Expression) chan Expression {
-	answer := make(chan Expression)
+func combinations(exprs []*Expression) chan *Expression {
+	answer := make(chan *Expression)
 	go func() {
 		defer close(answer)
 		for p := range permute(exprs) {
@@ -196,8 +213,8 @@ func combinations(exprs []Expression) chan Expression {
 	return answer
 }
 
-func permute(exprs []Expression) chan []Expression {
-	answer := make(chan []Expression)
+func permute(exprs []*Expression) chan []*Expression {
+	answer := make(chan []*Expression)
 	go func() {
 		defer close(answer)
 		if count := len(exprs); count == 1 {
@@ -229,20 +246,30 @@ func usedTracker() func(int) bool {
 	}
 }
 
-func copyAppend(arrs ...[]Expression) []Expression {
+func copyAppend(arrs ...[]*Expression) []*Expression {
 	length := 0
 	for _, arr := range arrs {
 		length += len(arr)
 	}
-	answer := make([]Expression, 0, length)
+	answer := make([]*Expression, 0, length)
 	for _, arr := range arrs {
 		answer = append(answer, arr...)
 	}
 	return answer
 }
 
-func combine(exprs []Expression) chan Expression {
-	answer := make(chan Expression)
+func combinersUsing(left *Expression) []combiner {
+	answer := make([]combiner, 0, len(combinerCreators))
+	for _, cc := range combinerCreators {
+		if c, ok := cc(left); ok {
+			answer = append(answer, c)
+		}
+	}
+	return answer
+}
+
+func combine(exprs []*Expression) chan *Expression {
+	answer := make(chan *Expression)
 	go func() {
 		defer close(answer)
 		if size := len(exprs); size == 1 {
@@ -251,9 +278,10 @@ func combine(exprs []Expression) chan Expression {
 			used := usedTracker()
 			for i := 1; i < size; i++ {
 				for left := range combine(exprs[:i]) {
+					combiners := combinersUsing(left)
 					for right := range combine(exprs[i:]) {
 						for _, comb := range combiners {
-							if expr, ok := comb(left, right); ok && !used(expr.value) {
+							if expr, ok := comb(right); ok && !used(expr.value) {
 								answer <- expr
 							}
 						}
@@ -265,27 +293,30 @@ func combine(exprs []Expression) chan Expression {
 	return answer
 }
 
-func findBest(target int, exprs chan Expression) chan Expression {
-	answer := make(chan Expression)
+func findBest(target int, exprs chan *Expression) chan *Expression {
+	answer := make(chan *Expression)
 	differenceFromTarget := differenceFrom(target)
 	go func() {
 		defer close(answer)
-		bestSoFar, bestDiff := Expression{}, 11
+		bestSoFar := struct {
+			expr *Expression
+			diff int
+		}{nil, 11}
 		for e := range exprs {
 			switch diff := differenceFromTarget(e); {
-			case diff > 10 || diff > bestDiff:
-			case diff == bestDiff && len(e.numbers) >= len(bestSoFar.numbers):
+			case diff > 10 || diff > bestSoFar.diff:
+			case diff == bestSoFar.diff && len(e.numbers) >= len(bestSoFar.expr.numbers):
 			default:
 				answer <- e
-				bestSoFar, bestDiff = e, diff
+				bestSoFar.expr, bestSoFar.diff = e, diff
 			}
 		}
 	}()
 	return answer
 }
 
-func differenceFrom(target int) func(Expression) int {
-	return func(e Expression) int {
+func differenceFrom(target int) func(*Expression) int {
+	return func(e *Expression) int {
 		if diff := target - e.value; diff < 0 {
 			return diff * -1
 		} else {

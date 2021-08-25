@@ -35,7 +35,7 @@ func (tc *testContext) callSolver(target int, numbers string) error {
 	fmt.Printf("Target: %v, numbers: %v\n", tc.target, tc.numbers)
 	for res := range Solve(target, tc.numbers...) {
 		fmt.Printf("%v = %v\n", res.print, res.value)
-		tc.result = &res
+		tc.result = res
 	}
 	if tc.result == nil {
 		fmt.Println("No result found")
