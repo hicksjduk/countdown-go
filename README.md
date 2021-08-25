@@ -103,23 +103,23 @@ The tests in this repository are BDD (behaviour-driven design) tests written in
 [the Gherkin language](https://cucumber.io/docs/gherkin/reference/). 
 These tests are run using the [godog](https://github.com/cucumber/godog) package.
 
-The simplest steps (followed in this repo) to get BDD-style tests discovered and
-run using godog are:
+The tests in this repo follow the simplest steps to get BDD-style tests discovered and
+run using godog; they are:
 * In the package where the code resides that you want to test, add:
    * a subdirectory called `features` which contains your Gherkin feature file(s)
-   * a file whose name ends with `_test.go` which contains your test definitions.
+   * a file whose name ends with `_test.go` which contains your test step definitions.
 * In the root of your project, run the command `go mod init`. This is required
 because test discovery and running only works properly in a Go module.
 
 Godog tests can be integrated with the Go test infrastructure using the `TestMain`
-function which is supported from version 1.14 onwards. The `countdown_test_go`
+function which is supported from version 1.14 onwards. The `countdown_test.go`
 file in this repo contains the following functions:
 * `TestMain`, which creates and runs a `godog.TestSuite` that is initialised using
 the `InitializeScenario` function.
 * A number of functions that implement the various test steps. Each of these functions
 returns an `error` if any expectations are not met, otherwise it returns `nil`.
 * `InitializeScenario`, which associates the test step implementation functions
-with the regular expressions that are used to match step definitions
+with the regular expressions that are used to match steps
 in the feature file. Each association is defined by calling `godog.Step`, passing
 a regular expression and a reference to a step implementation function.
 
