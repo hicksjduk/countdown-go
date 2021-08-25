@@ -89,19 +89,21 @@ var (
 
 type Expression struct {
 	value    int
-	print    string
+	print    func() string
 	priority Priority
 	numbers  []int
 }
 
 func (e *Expression) String() string {
-	return fmt.Sprintf("%v = %v", e.print, e.value)
+	return fmt.Sprintf("%v = %v", e.print(), e.value)
 }
 
 func numberExpression(n int) *Expression {
 	return &Expression{
-		value:    n,
-		print:    fmt.Sprintf("%d", n),
+		value: n,
+		print: func() string {
+			return fmt.Sprintf("%d", n)
+		},
 		priority: atomic,
 		numbers:  []int{n},
 	}
@@ -109,8 +111,10 @@ func numberExpression(n int) *Expression {
 
 func arithmeticExpression(leftOperand *Expression, operator operation, rightOperand *Expression) *Expression {
 	return &Expression{
-		value:    operator.evaluator(leftOperand.value, rightOperand.value),
-		print:    printExpression(leftOperand, operator, rightOperand),
+		value: operator.evaluator(leftOperand.value, rightOperand.value),
+		print: func() string {
+			return printExpression(leftOperand, operator, rightOperand)
+		},
 		priority: operator.priority,
 		numbers:  concatArrays(leftOperand.numbers, rightOperand.numbers),
 	}
@@ -130,11 +134,11 @@ func concatArrays(arrs ...[]int) []int {
 
 func printExpression(leftOperand *Expression, operator operation, rightOperand *Expression) string {
 	return fmt.Sprintf("%v %v %v",
-		withParensIfNecessary(leftOperand.print, func() bool {
+		withParensIfNecessary(leftOperand.print(), func() bool {
 			return leftOperand.priority < operator.priority
 		}),
 		operator.symbol,
-		withParensIfNecessary(rightOperand.print, func() bool {
+		withParensIfNecessary(rightOperand.print(), func() bool {
 			return rightOperand.priority < operator.priority ||
 				(rightOperand.priority == operator.priority && !operator.commutative)
 		}))

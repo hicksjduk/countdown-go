@@ -34,7 +34,7 @@ func (tc *testContext) callSolver(target int, numbers string) error {
 	fmt.Println("-----------------------------------")
 	fmt.Printf("Target: %v, numbers: %v\n", tc.target, tc.numbers)
 	for res := range Solve(target, tc.numbers...) {
-		fmt.Printf("%v = %v\n", res.print, res.value)
+		fmt.Printf("%v\n", res)
 		tc.result = res
 	}
 	if tc.result == nil {
@@ -77,11 +77,7 @@ func (tc *testContext) checkSolution(expectedValue, expectedCount int) error {
 func occurrenceCounts(nums []int) map[int]int {
 	answer := map[int]int{}
 	for _, n := range nums {
-		if _, ok := answer[n]; ok {
-			answer[n] += 1
-		} else {
-			answer[n] = 1
-		}
+		answer[n] += 1
 	}
 	return answer
 }
