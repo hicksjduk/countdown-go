@@ -116,11 +116,11 @@ func arithmeticExpression(leftOperand *Expression, operator operation, rightOper
 			return printExpression(leftOperand, operator, rightOperand)
 		},
 		priority: operator.priority,
-		numbers:  concatArrays(leftOperand.numbers, rightOperand.numbers),
+		numbers:  concatSlices(leftOperand.numbers, rightOperand.numbers),
 	}
 }
 
-func concatArrays(arrs ...[]int) []int {
+func concatSlices(arrs ...[]int) []int {
 	length := 0
 	for _, arr := range arrs {
 		length += len(arr)
