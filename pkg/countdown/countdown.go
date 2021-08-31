@@ -2,6 +2,7 @@ package countdown
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 )
 
@@ -13,27 +14,25 @@ func Solve(target int, numbers ...int) chan *Expression {
 	return solve(target, exprs)
 }
 
-const processCount = 5
+var processCount = runtime.GOMAXPROCS(0)
 
 func solve(target int, numbers []*Expression) chan *Expression {
 	combs := combinations(numbers)
-	accumulator := make(chan *Expression)
-	go func() {
-		var wg sync.WaitGroup
-		wg.Add(processCount)
-		defer func() {
-			wg.Wait()
-			close(accumulator)
-		}()
-		for i := processCount; i > 0; i-- {
-			go func() {
-				defer wg.Done()
-				for e := range findBest(target, combs) {
-					accumulator <- e
-				}
-			}()
-		}
+	accumulator := make(chan *Expression, processCount)
+	var wg sync.WaitGroup
+	wg.Add(processCount)
+	defer func() {
+		wg.Wait()
+		close(accumulator)
 	}()
+	for i := processCount; i > 0; i-- {
+		go func() {
+			defer wg.Done()
+			for e := range findBest(target, combs) {
+				accumulator <- e
+			}
+		}()
+	}
 	return findBest(target, accumulator)
 }
 
@@ -205,7 +204,7 @@ var combinerCreators = []combinerCreator{
 }
 
 func combinations(exprs []*Expression) chan *Expression {
-	answer := make(chan *Expression)
+	answer := make(chan *Expression, processCount)
 	go func() {
 		defer close(answer)
 		for p := range permute(exprs) {
@@ -218,7 +217,7 @@ func combinations(exprs []*Expression) chan *Expression {
 }
 
 func permute(exprs []*Expression) chan []*Expression {
-	answer := make(chan []*Expression)
+	answer := make(chan []*Expression, processCount)
 	go func() {
 		defer close(answer)
 		if count := len(exprs); count == 1 {
@@ -273,7 +272,7 @@ func combinersUsing(left *Expression) []combiner {
 }
 
 func combine(exprs []*Expression) chan *Expression {
-	answer := make(chan *Expression)
+	answer := make(chan *Expression, processCount)
 	go func() {
 		defer close(answer)
 		if size := len(exprs); size == 1 {
@@ -298,7 +297,7 @@ func combine(exprs []*Expression) chan *Expression {
 }
 
 func findBest(target int, exprs chan *Expression) chan *Expression {
-	answer := make(chan *Expression)
+	answer := make(chan *Expression, processCount)
 	differenceFromTarget := differenceFrom(target)
 	go func() {
 		defer close(answer)
