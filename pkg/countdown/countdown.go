@@ -304,16 +304,18 @@ func evaluator(target int) func(chan *Expression) chan *Expression {
 		go func() {
 			defer close(answer)
 			bestSoFar := struct {
-				expr *Expression
-				diff int
-			}{nil, 11}
+				diff  int
+				count int
+			}{11, 6}
 			for e := range exprs {
-				switch diff := differenceFromTarget(e); {
-				case diff > 10 || diff > bestSoFar.diff:
-				case diff == bestSoFar.diff && len(e.numbers) >= len(bestSoFar.expr.numbers):
-				default:
+				if diff := differenceFromTarget(e); diff <= 10 && diff < bestSoFar.diff {
 					answer <- e
-					bestSoFar.expr, bestSoFar.diff = e, diff
+					bestSoFar.diff, bestSoFar.count = diff, len(e.numbers)
+				} else if diff == bestSoFar.diff {
+					if count := len(e.numbers); count < bestSoFar.count {
+						answer <- e
+						bestSoFar.diff, bestSoFar.count = diff, count
+					}
 				}
 			}
 		}()
