@@ -60,8 +60,10 @@ is:
 * The function takes whatever parameters are needed to generate its output, and
 returns a channel of the appropriate output type.
 * The body of the function:
-   * Creates the channel through which the output is to be returned. The channel is
-     typically unbuffered.
+   * Creates the channel through which the output is to be returned. In a "pure" generator,
+     the channel is unbuffered, although where its output is consumed by multiple concurrent
+     goroutines its buffer size should be set to the number of those goroutines since
+     otherwise it may be a bottleneck.
    * Runs a goroutine which generates the output items and puts them in the channel,
      and then (crucially) closes the channel.
     * Returns the channel.
@@ -96,6 +98,24 @@ for i := range big_sequence_generator(10000000000) {
 	// process the data item
 }
 ```
+
+### Concurrency
+
+The algorithm for solving the puzzle makes use of Go concurrency to maximise performance. The
+key points of this are:
+
+* The number of goroutines that can be run simultaneously is queried, and stored in a variable
+called `processCount`:
+```go
+var processCount = runtime.GOMAXPROCS(0)
+```
+* All channels created by the program have their buffer size set to `processCount`, so that none
+imposes a bottleneck on the processing.
+* The main process creates `processCount` goroutines, each of which consumes some of the expressions
+produced by combining the input numbers, finds the best solution(s) from among the expressions it
+consumes, and writes those to an `accumulator` channel. The main process then consumes the 
+`accumulator` channel until it is closed (which happens automatically when all the goroutines have 
+finished), and writes to its output the best solution(s) from those written to that channel.
 
 ## Testing notes
 
