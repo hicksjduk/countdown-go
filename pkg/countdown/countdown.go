@@ -19,21 +19,22 @@ var processCount = runtime.GOMAXPROCS(0)
 func solve(target int, numbers []*Expression) chan *Expression {
 	combs := combinations(numbers)
 	accumulator := make(chan *Expression, processCount)
+	findBest := evaluator(target)
 	var wg sync.WaitGroup
 	wg.Add(processCount)
-	defer func() {
-		wg.Wait()
-		close(accumulator)
-	}()
 	for i := processCount; i > 0; i-- {
 		go func() {
 			defer wg.Done()
-			for e := range findBest(target, combs) {
+			for e := range findBest(combs) {
 				accumulator <- e
 			}
 		}()
 	}
-	return findBest(target, accumulator)
+	go func() {
+		wg.Wait()
+		close(accumulator)
+	}()
+	return findBest(accumulator)
 }
 
 type Priority int
@@ -296,26 +297,28 @@ func combine(exprs []*Expression) chan *Expression {
 	return answer
 }
 
-func findBest(target int, exprs chan *Expression) chan *Expression {
-	answer := make(chan *Expression, processCount)
+func evaluator(target int) func(chan *Expression) chan *Expression {
 	differenceFromTarget := differenceFrom(target)
-	go func() {
-		defer close(answer)
-		bestSoFar := struct {
-			expr *Expression
-			diff int
-		}{nil, 11}
-		for e := range exprs {
-			switch diff := differenceFromTarget(e); {
-			case diff > 10 || diff > bestSoFar.diff:
-			case diff == bestSoFar.diff && len(e.numbers) >= len(bestSoFar.expr.numbers):
-			default:
-				answer <- e
-				bestSoFar.expr, bestSoFar.diff = e, diff
+	return func(exprs chan *Expression) chan *Expression {
+		answer := make(chan *Expression, processCount)
+		go func() {
+			defer close(answer)
+			bestSoFar := struct {
+				expr *Expression
+				diff int
+			}{nil, 11}
+			for e := range exprs {
+				switch diff := differenceFromTarget(e); {
+				case diff > 10 || diff > bestSoFar.diff:
+				case diff == bestSoFar.diff && len(e.numbers) >= len(bestSoFar.expr.numbers):
+				default:
+					answer <- e
+					bestSoFar.expr, bestSoFar.diff = e, diff
+				}
 			}
-		}
-	}()
-	return answer
+		}()
+		return answer
+	}
 }
 
 func differenceFrom(target int) func(*Expression) int {
