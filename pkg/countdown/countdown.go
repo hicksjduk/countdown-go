@@ -305,10 +305,12 @@ func evaluator(target int) func(chan *Expression) chan *Expression {
 				count int
 			}{11, 6}
 			for e := range exprs {
-				if diff := differenceFromTarget(e); diff <= 10 && diff < bestSoFar.diff {
+				switch diff := differenceFromTarget(e); {
+				case diff > 10 || diff > bestSoFar.diff:
+				case diff < bestSoFar.diff:
 					answer <- e
 					bestSoFar.diff, bestSoFar.count = diff, len(e.numbers)
-				} else if diff == bestSoFar.diff {
+				default:
 					if count := len(e.numbers); count < bestSoFar.count {
 						answer <- e
 						bestSoFar.diff, bestSoFar.count = diff, count
