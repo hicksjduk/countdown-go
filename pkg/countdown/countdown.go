@@ -134,18 +134,15 @@ func concatSlices(arrs ...[]int) []int {
 
 func printExpression(leftOperand *Expression, operator operation, rightOperand *Expression) string {
 	return fmt.Sprintf("%v %v %v",
-		withParensIfNecessary(leftOperand.print(), func() bool {
-			return leftOperand.priority < operator.priority
-		}),
+		withParensIfNecessary(leftOperand.print(), leftOperand.priority < operator.priority),
 		operator.symbol,
-		withParensIfNecessary(rightOperand.print(), func() bool {
-			return rightOperand.priority < operator.priority ||
-				(rightOperand.priority == operator.priority && !operator.commutative)
-		}))
+		withParensIfNecessary(rightOperand.print(),
+			rightOperand.priority < operator.priority ||
+				(rightOperand.priority == operator.priority && !operator.commutative)))
 }
 
-func withParensIfNecessary(s string, parensNeeded func() bool) string {
-	if parensNeeded() {
+func withParensIfNecessary(s string, parensNeeded bool) string {
+	if parensNeeded {
 		return fmt.Sprintf("(%v)", s)
 	}
 	return s
