@@ -303,7 +303,7 @@ func evaluator(target int) func(chan *Expression) chan *Expression {
 			bestSoFar := struct {
 				diff  int
 				count int
-			}{11, 6}
+			}{diff: 11}
 			for e := range exprs {
 				switch diff := differenceFromTarget(e); {
 				case diff > 10 || diff > bestSoFar.diff:
