@@ -116,18 +116,18 @@ func arithmeticExpression(leftOperand *Expression, operator operation, rightOper
 			return printExpression(leftOperand, operator, rightOperand)
 		},
 		priority: operator.priority,
-		numbers:  concatSlices(leftOperand.numbers, rightOperand.numbers),
+		numbers:  concatIntSlices(leftOperand.numbers, rightOperand.numbers),
 	}
 }
 
-func concatSlices(arrs ...[]int) []int {
+func concatIntSlices(slices ...[]int) []int {
 	length := 0
-	for _, arr := range arrs {
-		length += len(arr)
+	for _, slice := range slices {
+		length += len(slice)
 	}
 	answer := make([]int, 0, length)
-	for _, arr := range arrs {
-		answer = append(answer, arr...)
+	for _, slice := range slices {
+		answer = append(answer, slice...)
 	}
 	return answer
 }
@@ -226,8 +226,8 @@ func permute(exprs []*Expression) chan []*Expression {
 				if !used(expr.value) {
 					currentExpr := exprs[i : i+1]
 					answer <- currentExpr
-					for es := range permute(copyAppend(exprs[:i], exprs[i+1:])) {
-						answer <- copyAppend(currentExpr, es)
+					for es := range permute(concatExpressionSlices(exprs[:i], exprs[i+1:])) {
+						answer <- concatExpressionSlices(currentExpr, es)
 					}
 				}
 			}
@@ -247,14 +247,14 @@ func usedTracker() func(int) bool {
 	}
 }
 
-func copyAppend(arrs ...[]*Expression) []*Expression {
+func concatExpressionSlices(slices ...[]*Expression) []*Expression {
 	length := 0
-	for _, arr := range arrs {
-		length += len(arr)
+	for _, slice := range slices {
+		length += len(slice)
 	}
 	answer := make([]*Expression, 0, length)
-	for _, arr := range arrs {
-		answer = append(answer, arr...)
+	for _, s := range slices {
+		answer = append(answer, s...)
 	}
 	return answer
 }
