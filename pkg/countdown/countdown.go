@@ -116,20 +116,8 @@ func arithmeticExpression(leftOperand *Expression, operator operation, rightOper
 			return printExpression(leftOperand, operator, rightOperand)
 		},
 		priority: operator.priority,
-		numbers:  concatIntSlices(leftOperand.numbers, rightOperand.numbers),
+		numbers:  append(append([]int{}, leftOperand.numbers...), rightOperand.numbers...),
 	}
-}
-
-func concatIntSlices(slices ...[]int) []int {
-	length := 0
-	for _, slice := range slices {
-		length += len(slice)
-	}
-	answer := make([]int, 0, length)
-	for _, slice := range slices {
-		answer = append(answer, slice...)
-	}
-	return answer
 }
 
 func printExpression(leftOperand *Expression, operator operation, rightOperand *Expression) string {
@@ -224,10 +212,10 @@ func permute(exprs []*Expression) chan []*Expression {
 			used := usedTracker()
 			for i, expr := range exprs {
 				if !used(expr.value) {
-					currentExpr := exprs[i : i+1]
-					answer <- currentExpr
-					for es := range permute(concatExpressionSlices(exprs[:i], exprs[i+1:])) {
-						answer <- concatExpressionSlices(currentExpr, es)
+					answer <- []*Expression{exprs[i]}
+					others := append(append([]*Expression{}, exprs[:i]...), exprs[i+1:]...)
+					for perm := range permute(others) {
+						answer <- append([]*Expression{exprs[i]}, perm...)
 					}
 				}
 			}
@@ -245,18 +233,6 @@ func usedTracker() func(int) bool {
 		}
 		return answer
 	}
-}
-
-func concatExpressionSlices(slices ...[]*Expression) []*Expression {
-	length := 0
-	for _, slice := range slices {
-		length += len(slice)
-	}
-	answer := make([]*Expression, 0, length)
-	for _, s := range slices {
-		answer = append(answer, s...)
-	}
-	return answer
 }
 
 func combinersUsing(left *Expression) []combiner {
@@ -303,18 +279,12 @@ func evaluator(target int) func(chan *Expression) chan *Expression {
 			bestSoFar := struct {
 				diff  int
 				count int
-			}{diff: 11}
+			}{diff: 11, count: 0}
 			for e := range exprs {
-				switch diff := differenceFromTarget(e); {
-				case diff > 10 || diff > bestSoFar.diff:
-				case diff < bestSoFar.diff:
+				if diff := differenceFromTarget(e); diff < bestSoFar.diff ||
+					(diff == bestSoFar.diff && len(e.numbers) < bestSoFar.count) {
 					answer <- e
 					bestSoFar.diff, bestSoFar.count = diff, len(e.numbers)
-				default:
-					if count := len(e.numbers); count < bestSoFar.count {
-						answer <- e
-						bestSoFar.diff, bestSoFar.count = diff, count
-					}
 				}
 			}
 		}()
