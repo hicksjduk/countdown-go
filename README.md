@@ -101,7 +101,7 @@ for i := range big_sequence_generator(10000000000) {
 }
 ```
 
-Creating a slice of the size shown would very likely cause an out-of-memory exception, or if not would take a considerable time; but using a generator the sequence can be created and consumed quickly and using very little memory, as only one element of the sequence actually exists in memory at any given time.
+Creating a slice of the size shown would very likely cause an out-of-memory exception, or if not would take a considerable time; but using a generator the sequence can be created quickly and consumed using very little memory, as only one element of the sequence actually exists in memory at any given time.
 
 ### Concurrency
 
