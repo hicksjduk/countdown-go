@@ -13,15 +13,18 @@ inclusive). The numbers for use are taken from the 'big' numbers 25, 50, 75 and
 (up to two occurrences of each).
 
 In order to be a valid solution, an expression must differ from the target
-number by 10 or less. One solution is better than another if it differs by less
-from the target number by less. This solver also treats one solution as better
+number by 10 or less. One solution is better than another if it differs 
+from the target number by a smaller amount. This solver also treats one solution as better
 than another if it differs from the target number by the same amount, but uses
-fewer numbers (although this is not part of the game).
+fewer source numbers (although this is not part of the game).
 
-Typically, the solver outputs multiple expressions, showing a progression
+The solver outputs a channel which may contain multiple expressions, showing a progression
 towards the optimum solution. It outputs the first expression it finds that
 differs from the target number by 10 or less, then each expression that is found
-to be a better solution than the previous one.
+to be a better solution than the previous best one. The last expression is therefore the best possible solution. It can, of course, also happen
+that there is no way of combining the source numbers in such a way as to make an
+expression that differs from the target number by 10 or less, in which case the output channel never contains
+anything.
 
 ## Some notes on implementation
 
@@ -62,8 +65,7 @@ returns a channel of the appropriate output type.
 * The body of the function:
    * Creates the channel through which the output is to be returned. In a "pure" generator,
      the channel is unbuffered, although where its output is consumed by multiple concurrent
-     goroutines its buffer size should be set to the number of those goroutines since
-     otherwise it may be a bottleneck.
+     goroutines its buffer size should be set to the number of those goroutines, otherwise it may be a bottleneck.
    * Runs a goroutine which generates the output items and puts them in the channel,
      and then (crucially) closes the channel.
     * Returns the channel.
@@ -78,7 +80,7 @@ An example of a generator function that returns a potentially very large sequenc
 of integers is:
 
 ```golang
-func int_sequence_generator(max int) chan int {
+func big_sequence_generator(max int) chan int {
     answer := make(chan int)
     go func() {
         defer close(answer)
@@ -99,6 +101,8 @@ for i := range big_sequence_generator(10000000000) {
 }
 ```
 
+Creating a slice of the size shown would very likely cause an out-of-memory exception, or if not would take a considerable time; but using a generator the sequence can be created and consumed quickly and using very little memory, as only one element of the sequence actually exists in memory at any given time.
+
 ### Concurrency
 
 The algorithm for solving the puzzle makes use of Go concurrency to maximise performance. The
@@ -113,7 +117,8 @@ var processCount = runtime.GOMAXPROCS(0)
 imposes a bottleneck on the processing.
 * The main process creates `processCount` goroutines, each of which consumes some of the expressions
 produced by combining the input numbers, finds the best solution(s) from among the expressions it
-consumes, and writes those to an `accumulator` channel. The main process then consumes the 
+consumes, and writes those to an `accumulator` channel. 
+* The main process then consumes the 
 `accumulator` channel until it is closed (which happens automatically when all the goroutines have 
 finished), and writes to its output the best solution(s) from those written to that channel.
 
@@ -137,33 +142,15 @@ file in this repo contains the following functions:
 * `TestMain`, which creates and runs a `godog.TestSuite` that is initialised using
 the `InitializeScenario` function.
 * A number of functions that implement the various test steps. Each of these functions
-returns an `error` if any expectations are not met, otherwise it returns `nil`.
+returns `nil` if all its expectations are met, otherwise it returns an `error`.
 * `InitializeScenario`, which associates the test step implementation functions
 with the regular expressions that are used to match steps
-in the feature file. Each association is defined by calling `godog.Step`, passing
+in the feature file. Each association is defined by calling the `Step` method of the input `godog.ScenarioContext`, passing
 a regular expression and a reference to a step implementation function.
 
-The easiest way to pass data from one step of a test to another is to define a type
+The easiest way to pass data between step definitions is to define a type
 which contains the data that needs to be passed, and then to make all
 the step implementation functions (or at least those that need to pass or receive
 data) methods of that type. Then, in the `InitializeScenario` function, an instance
 of that type is created, and each step implementation is defined as a method of that
 instance.
-
-For example, in this test suite all the step implementations are methods of type `testContext`
-which is a struct containing a number of fields. Then the `InitializeScenario`
-function is defined thus:
-```go
-func InitializeScenario(ctx *godog.ScenarioContext) {
-	tc := &testContext{}
-	ctx.Step(`^I call the solver with target number (\d+) and numbers (\d+(?:\s*,\s*\d+)*)$`,
-		tc.callSolver)
-	ctx.Step(`^a solution is found whose value equals the target number and which uses (\d+) numbers$`,
-		tc.checkExactSolution)
-	ctx.Step(`^a solution is found whose value equals (\d+) and which uses (\d+) numbers$`,
-		tc.checkSolution)
-	ctx.Step(`^no solution is found$`, tc.checkNoSolution)
-}
-```
-The first line of this function creates an instance of `testContext`, and the remaining lines
-associate its methods with the regular expressions used in parsing the feature file.
