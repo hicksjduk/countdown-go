@@ -213,7 +213,10 @@ func permute(exprs []*Expression) chan []*Expression {
 			for i, expr := range exprs {
 				if !used(expr.value) {
 					answer <- []*Expression{exprs[i]}
-					others := append(append([]*Expression{}, exprs[:i]...), exprs[i+1:]...)
+					others := make([]*Expression, 0, count-1)
+					for _, subArray := range [][]*Expression{exprs[:i], exprs[i+1:]} {
+						others = append(others, subArray...)
+					}
 					for perm := range permute(others) {
 						answer <- append([]*Expression{exprs[i]}, perm...)
 					}
