@@ -136,50 +136,50 @@ func withParensIfNecessary(s string, parensNeeded bool) string {
 	return s
 }
 
-type combiner func(*Expression) (*Expression, bool)
+type combiner func(*Expression) *Expression
 
-type combinerCreator func(*Expression) (combiner, bool)
+type combinerCreator func(*Expression) combiner
 
-func addCombinerCreator(left *Expression) (combiner, bool) {
-	return func(right *Expression) (*Expression, bool) {
-		return arithmeticExpression(left, addition, right), true
-	}, true
+func addCombinerCreator(left *Expression) combiner {
+	return func(right *Expression) *Expression {
+		return arithmeticExpression(left, addition, right)
+	}
 }
 
-func subtractCombinerCreator(left *Expression) (combiner, bool) {
+func subtractCombinerCreator(left *Expression) combiner {
 	if left.value < 3 {
-		return nil, false
+		return nil
 	}
-	return func(right *Expression) (*Expression, bool) {
+	return func(right *Expression) *Expression {
 		if left.value <= right.value || left.value == right.value*2 {
-			return nil, false
+			return nil
 		}
-		return arithmeticExpression(left, subtraction, right), true
-	}, true
+		return arithmeticExpression(left, subtraction, right)
+	}
 }
 
-func multiplyCombinerCreator(left *Expression) (combiner, bool) {
+func multiplyCombinerCreator(left *Expression) combiner {
 	if left.value == 1 {
-		return nil, false
+		return nil
 	}
-	return func(right *Expression) (*Expression, bool) {
+	return func(right *Expression) *Expression {
 		if right.value == 1 {
-			return nil, false
+			return nil
 		}
-		return arithmeticExpression(left, multiplication, right), true
-	}, true
+		return arithmeticExpression(left, multiplication, right)
+	}
 }
 
-func divideCombinerCreator(left *Expression) (combiner, bool) {
+func divideCombinerCreator(left *Expression) combiner {
 	if left.value == 1 {
-		return nil, false
+		return nil
 	}
-	return func(right *Expression) (*Expression, bool) {
+	return func(right *Expression) *Expression {
 		if right.value == 1 || left.value%right.value != 0 || left.value == right.value*right.value {
-			return nil, false
+			return nil
 		}
-		return arithmeticExpression(left, division, right), true
-	}, true
+		return arithmeticExpression(left, division, right)
+	}
 }
 
 var combinerCreators = []combinerCreator{
@@ -238,7 +238,7 @@ func usedTracker() func(int) bool {
 func combinersUsing(left *Expression) []combiner {
 	answer := make([]combiner, 0, len(combinerCreators))
 	for _, cc := range combinerCreators {
-		if c, ok := cc(left); ok {
+		if c := cc(left); c != nil {
 			answer = append(answer, c)
 		}
 	}
@@ -258,7 +258,7 @@ func combine(exprs []*Expression) chan *Expression {
 					combiners := combinersUsing(left)
 					for right := range combine(exprs[i:]) {
 						for _, comb := range combiners {
-							if expr, ok := comb(right); ok && !used(expr.value) {
+							if expr := comb(right); expr != nil && !used(expr.value) {
 								answer <- expr
 							}
 						}
