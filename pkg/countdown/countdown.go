@@ -4,19 +4,50 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"time"
 )
 
-func Solve(target int, numbers ...int) chan *Expression {
-	exprs := make([]*Expression, len(numbers))
-	for i, v := range numbers {
-		exprs[i] = numberExpression(v)
+func Solve(target int, numbers ...int) *Expression {
+	fmt.Println("-----------------------------------")
+	fmt.Printf("Target: %v, numbers: %v\n", target, numbers)
+	answer, time := doTimed(func() *Expression {
+		return solve(target, numbers)
+	})
+	fmt.Printf("Finished in %vms\n", time)
+	if answer == nil {
+		fmt.Println("No result found")
 	}
-	return solve(target, exprs)
+	fmt.Println("-----------------------------------")
+	return answer
+}
+
+func doTimed(f func() *Expression) (*Expression, int64) {
+	start := currentTimeMillis()
+	answer := f()
+	end := currentTimeMillis()
+	return answer, end - start
+}
+
+func currentTimeMillis() int64 {
+	return int64(time.Nanosecond) * time.Now().UnixNano() / int64(time.Millisecond)
 }
 
 var processCount = runtime.GOMAXPROCS(0)
 
-func solve(target int, numbers []*Expression) chan *Expression {
+func solve(target int, numbers []int) *Expression {
+	exprs := make([]*Expression, len(numbers))
+	for i, v := range numbers {
+		exprs[i] = numberExpression(v)
+	}
+	var answer *Expression = nil
+	for expr := range solveIt(target, exprs) {
+		fmt.Printf("%v\n", expr)
+		answer = expr
+	}
+	return answer
+}
+
+func solveIt(target int, numbers []*Expression) chan *Expression {
 	combs := combinations(numbers)
 	accumulator := make(chan *Expression, processCount)
 	findBest := evaluator(target)

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"countdown/pkg/countdown"
 )
@@ -22,15 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 	validateNumbersToUse(numbers)
-	fmt.Printf("Target number: %v, numbers to use: %v\n", target, strings.Join(args[1:], " "))
-	found := false
-	for expr := range countdown.Solve(target, numbers...) {
-		fmt.Println(expr)
-		found = true
-	}
-	if !found {
-		fmt.Println("No solutions found!")
-	}
+	countdown.Solve(target, numbers...)
 }
 
 func convertToInt(args []string) []int {

@@ -31,16 +31,7 @@ type testContext struct {
 func (tc *testContext) callSolver(target int, numbers string) error {
 	tc.target = target
 	tc.numbers = toNumberArray(numbers)
-	fmt.Println("-----------------------------------")
-	fmt.Printf("Target: %v, numbers: %v\n", tc.target, tc.numbers)
-	for res := range Solve(target, tc.numbers...) {
-		fmt.Printf("%v\n", res)
-		tc.result = res
-	}
-	if tc.result == nil {
-		fmt.Println("No result found")
-	}
-	fmt.Println("-----------------------------------")
+	tc.result = Solve(target, tc.numbers...)
 	return nil
 }
 
@@ -65,21 +56,28 @@ func (tc *testContext) checkSolution(expectedValue, expectedCount int) error {
 	if expected, actual := expectedCount, len(tc.result.numbers); expected != actual {
 		return fmt.Errorf("Expected solution that uses %v number(s) but got %v", expected, actual)
 	}
-	expectedOcc, actualOcc := occurrenceCounts(tc.numbers), occurrenceCounts(tc.result.numbers)
-	for n, actual := range actualOcc {
-		if expected, ok := expectedOcc[n]; !ok || expected < actual {
-			return fmt.Errorf("Solution has too many occurrences of %v", n)
+	countVal := countValidator(tc.numbers)
+	for _, actual := range tc.result.numbers {
+		if err := countVal(actual); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func occurrenceCounts(nums []int) map[int]int {
-	answer := map[int]int{}
+func countValidator(nums []int) func(int) error {
+	expected := map[int]int{}
 	for _, n := range nums {
-		answer[n] += 1
+		expected[n] += 1
 	}
-	return answer
+	actual := map[int]int{}
+	return func(v int) error {
+		actual[v] += 1
+		if actual[v] > expected[v] {
+			return fmt.Errorf("Solution has too many occurrences of %v", v)
+		}
+		return nil
+	}
 }
 
 func (tc *testContext) checkNoSolution() error {
