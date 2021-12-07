@@ -20,7 +20,7 @@ func solve(target int, numbers []*Expression) chan *Expression {
 	combs := combinations(numbers)
 	accumulator := make(chan *Expression, processCount)
 	findBest := evaluator(target)
-	var wg sync.WaitGroup
+	wg := sync.WaitGroup{}
 	wg.Add(processCount)
 	for i := processCount; i > 0; i-- {
 		go func() {
