@@ -119,10 +119,11 @@ var (
 )
 
 type Expression struct {
-	value    int
-	print    func() string
-	priority Priority
-	numbers  []int
+	value       int
+	print       func() string
+	priority    Priority
+	numbers     []int
+	parentheses int
 }
 
 func (e *Expression) String() string {
@@ -135,29 +136,45 @@ func numberExpression(n int) *Expression {
 		print: func() string {
 			return fmt.Sprintf("%d", n)
 		},
-		priority: atomic,
-		numbers:  []int{n},
+		priority:    atomic,
+		numbers:     []int{n},
+		parentheses: 0,
 	}
 }
 
 func arithmeticExpression(leftOperand *Expression, operator operation, rightOperand *Expression) *Expression {
-	return &Expression{
+	answer := &Expression{
 		value: operator.evaluator(leftOperand.value, rightOperand.value),
 		print: func() string {
 			return printExpression(leftOperand, operator, rightOperand)
 		},
-		priority: operator.priority,
-		numbers:  append(append([]int{}, leftOperand.numbers...), rightOperand.numbers...),
+		priority:    operator.priority,
+		numbers:     append(append([]int{}, leftOperand.numbers...), rightOperand.numbers...),
+		parentheses: leftOperand.parentheses + rightOperand.parentheses,
 	}
+	if parenthesiseLeft(operator, leftOperand) {
+		answer.parentheses++
+	}
+	if parenthesiseRight(operator, rightOperand) {
+		answer.parentheses++
+	}
+	return answer
 }
 
 func printExpression(leftOperand *Expression, operator operation, rightOperand *Expression) string {
 	return fmt.Sprintf("%v %v %v",
-		withParensIfNecessary(leftOperand.print(), leftOperand.priority < operator.priority),
+		withParensIfNecessary(leftOperand.print(), parenthesiseLeft(operator, leftOperand)),
 		operator.symbol,
-		withParensIfNecessary(rightOperand.print(),
-			rightOperand.priority < operator.priority ||
-				(rightOperand.priority == operator.priority && !operator.commutative)))
+		withParensIfNecessary(rightOperand.print(), parenthesiseRight(operator, rightOperand)))
+}
+
+func parenthesiseLeft(operator operation, leftOperand *Expression) bool {
+	return leftOperand.priority < operator.priority
+}
+
+func parenthesiseRight(operator operation, rightOperand *Expression) bool {
+	return rightOperand.priority < operator.priority ||
+		(rightOperand.priority == operator.priority && !operator.commutative)
 }
 
 func withParensIfNecessary(s string, parensNeeded bool) string {
@@ -286,13 +303,12 @@ func combine(exprs []*Expression) chan *Expression {
 		if size := len(exprs); size == 1 {
 			answer <- exprs[0]
 		} else {
-			used := usedTracker()
 			for i := 1; i < size; i++ {
 				for left := range combine(exprs[:i]) {
 					combiners := combinersUsing(left)
 					for right := range combine(exprs[i:]) {
 						for _, comb := range combiners {
-							if expr := comb(right); expr != nil && !used(expr.value) {
+							if expr := comb(right); expr != nil {
 								answer <- expr
 							}
 						}
@@ -311,14 +327,28 @@ func evaluator(target int) func(chan *Expression) chan *Expression {
 		go func() {
 			defer close(answer)
 			bestSoFar := struct {
-				diff  int
-				count int
-			}{diff: 11, count: 0}
+				diff        int
+				count       int
+				parentheses int
+			}{diff: 11, count: 0, parentheses: 0}
 			for e := range exprs {
-				if diff := differenceFromTarget(e); diff < bestSoFar.diff ||
-					(diff == bestSoFar.diff && len(e.numbers) < bestSoFar.count) {
+				newBest := false
+				diff := differenceFromTarget(e)
+				if diff < bestSoFar.diff {
+					newBest = true
+				} else if diff == bestSoFar.diff {
+					if count := len(e.numbers); count < bestSoFar.count {
+						newBest = true
+					} else if count == bestSoFar.count {
+						if e.parentheses < bestSoFar.parentheses {
+							newBest = true
+						}
+					}
+				}
+				if newBest {
 					answer <- e
-					bestSoFar.diff, bestSoFar.count = diff, len(e.numbers)
+					bestSoFar.diff, bestSoFar.count, bestSoFar.parentheses =
+						diff, len(e.numbers), e.parentheses
 				}
 			}
 		}()
