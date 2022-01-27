@@ -84,7 +84,7 @@ type operation struct {
 }
 
 var (
-	addition = operation{
+	addition = &operation{
 		symbol:      "+",
 		priority:    low,
 		commutative: true,
@@ -92,7 +92,7 @@ var (
 			return a + b
 		},
 	}
-	subtraction = operation{
+	subtraction = &operation{
 		symbol:      "-",
 		priority:    low,
 		commutative: false,
@@ -100,7 +100,7 @@ var (
 			return a - b
 		},
 	}
-	multiplication = operation{
+	multiplication = &operation{
 		symbol:      "*",
 		priority:    high,
 		commutative: true,
@@ -108,7 +108,7 @@ var (
 			return a * b
 		},
 	}
-	division = operation{
+	division = &operation{
 		symbol:      "/",
 		priority:    high,
 		commutative: false,
@@ -142,7 +142,7 @@ func numberExpression(n int) *Expression {
 	}
 }
 
-func arithmeticExpression(leftOperand *Expression, operator operation, rightOperand *Expression) *Expression {
+func arithmeticExpression(leftOperand *Expression, operator *operation, rightOperand *Expression) *Expression {
 	answer := &Expression{
 		value: operator.evaluator(leftOperand.value, rightOperand.value),
 		print: func() string {
@@ -161,18 +161,18 @@ func arithmeticExpression(leftOperand *Expression, operator operation, rightOper
 	return answer
 }
 
-func printExpression(leftOperand *Expression, operator operation, rightOperand *Expression) string {
+func printExpression(leftOperand *Expression, operator *operation, rightOperand *Expression) string {
 	return fmt.Sprintf("%v %v %v",
 		withParensIfNecessary(leftOperand.print(), parenthesiseLeft(operator, leftOperand)),
 		operator.symbol,
 		withParensIfNecessary(rightOperand.print(), parenthesiseRight(operator, rightOperand)))
 }
 
-func parenthesiseLeft(operator operation, leftOperand *Expression) bool {
+func parenthesiseLeft(operator *operation, leftOperand *Expression) bool {
 	return leftOperand.priority < operator.priority
 }
 
-func parenthesiseRight(operator operation, rightOperand *Expression) bool {
+func parenthesiseRight(operator *operation, rightOperand *Expression) bool {
 	return rightOperand.priority < operator.priority ||
 		(rightOperand.priority == operator.priority && !operator.commutative)
 }
