@@ -48,24 +48,27 @@ func solve(target int, numbers []int) *Expression {
 }
 
 func solveIt(target int, numbers []*Expression) chan *Expression {
-	combs := combinations(numbers)
+	combs := combinations(numbers, target)
+	evaluate := evaluator(target)
 	accumulator := make(chan *Expression, processCount)
-	findBest := evaluator(target)
 	wg := sync.WaitGroup{}
 	wg.Add(processCount)
 	for i := processCount; i > 0; i-- {
 		go func() {
 			defer wg.Done()
-			for e := range findBest(combs) {
-				accumulator <- e
-			}
+			evaluate(combs, accumulator)
 		}()
 	}
+	answer := make(chan *Expression, processCount)
+	go func() {
+		defer close(answer)
+		evaluate(accumulator, answer)
+	}()
 	go func() {
 		wg.Wait()
 		close(accumulator)
 	}()
-	return findBest(accumulator)
+	return answer
 }
 
 type Priority int
@@ -237,13 +240,16 @@ var combinerCreators = []combinerCreator{
 	divideCombinerCreator,
 }
 
-func combinations(exprs []*Expression) chan *Expression {
+func combinations(exprs []*Expression, target int) chan *Expression {
 	answer := make(chan *Expression, processCount)
+	diff := differenceFrom(target)
 	go func() {
 		defer close(answer)
 		for p := range permute(exprs) {
 			for c := range combine(p) {
-				answer <- c
+				if diff(c) <= 10 {
+					answer <- c
+				}
 			}
 		}
 	}()
@@ -320,39 +326,40 @@ func combine(exprs []*Expression) chan *Expression {
 	return answer
 }
 
-func evaluator(target int) func(chan *Expression) chan *Expression {
-	differenceFromTarget := differenceFrom(target)
-	return func(exprs chan *Expression) chan *Expression {
-		answer := make(chan *Expression, processCount)
-		go func() {
-			defer close(answer)
-			bestSoFar := struct {
-				diff        int
-				count       int
-				parentheses int
-			}{diff: 11, count: 0, parentheses: 0}
-			for e := range exprs {
-				newBest := false
-				diff := differenceFromTarget(e)
-				if diff < bestSoFar.diff {
-					newBest = true
-				} else if diff == bestSoFar.diff {
-					if count := len(e.numbers); count < bestSoFar.count {
-						newBest = true
-					} else if count == bestSoFar.count {
-						if e.parentheses < bestSoFar.parentheses {
-							newBest = true
-						}
-					}
-				}
-				if newBest {
-					answer <- e
-					bestSoFar.diff, bestSoFar.count, bestSoFar.parentheses =
-						diff, len(e.numbers), e.parentheses
-				}
+func evaluator(target int) func(chan *Expression, chan *Expression) {
+	compare := better(target)
+	return func(exprs, output chan *Expression) {
+		var bestSoFar *Expression
+		for e := range exprs {
+			if bestSoFar == nil || compare(bestSoFar, e) == e {
+				bestSoFar = e
+				output <- e
 			}
-		}()
-		return answer
+		}
+	}
+}
+
+func better(target int) func(*Expression, *Expression) *Expression {
+	extractors := []func(*Expression) int{
+		differenceFrom(target),
+		func(e *Expression) int {
+			return len(e.numbers)
+		},
+		func(e *Expression) int {
+			return e.parentheses
+		},
+	}
+	return func(e1, e2 *Expression) *Expression {
+		for _, f := range extractors {
+			v1, v2 := f(e1), f(e2)
+			if v1 < v2 {
+				return e1
+			}
+			if v1 > v2 {
+				return e2
+			}
+		}
+		return e1
 	}
 }
 
