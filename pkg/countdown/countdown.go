@@ -263,7 +263,7 @@ func permute(exprs []*Expression) chan []*Expression {
 		if count := len(exprs); count == 1 {
 			answer <- exprs
 		} else {
-			used := usedTracker()
+			used := usedTracker[int]()
 			for i, expr := range exprs {
 				if !used(expr.value) {
 					answer <- []*Expression{exprs[i]}
@@ -281,9 +281,9 @@ func permute(exprs []*Expression) chan []*Expression {
 	return answer
 }
 
-func usedTracker() func(int) bool {
-	used := map[int]interface{}{}
-	return func(v int) bool {
+func usedTracker[K comparable]() func(K) bool {
+	used := map[K]interface{}{}
+	return func(v K) bool {
 		_, answer := used[v]
 		if !answer {
 			used[v] = nil

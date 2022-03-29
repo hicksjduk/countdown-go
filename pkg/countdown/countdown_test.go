@@ -39,8 +39,8 @@ func toNumberArray(str string) []int {
 	splitRe := regexp.MustCompile(`\D+`)
 	items := splitRe.Split(str, -1)
 	nums := make([]int, len(items))
-	for i := range nums {
-		nums[i], _ = strconv.Atoi(items[i])
+	for i, item := range items {
+		nums[i], _ = strconv.Atoi(item)
 	}
 	return nums
 }
@@ -65,13 +65,13 @@ func (tc *testContext) checkSolution(expectedValue, expectedCount int) error {
 	return nil
 }
 
-func countValidator(nums []int) func(int) error {
-	expected := map[int]int{}
-	for _, n := range nums {
+func countValidator[K comparable](values []K) func(K) error {
+	expected := map[K]int{}
+	for _, n := range values {
 		expected[n] += 1
 	}
-	actual := map[int]int{}
-	return func(v int) error {
+	actual := map[K]int{}
+	return func(v K) error {
 		actual[v] += 1
 		if actual[v] > expected[v] {
 			return fmt.Errorf("Solution has too many occurrences of %v", v)
